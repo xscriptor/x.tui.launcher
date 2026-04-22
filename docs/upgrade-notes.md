@@ -4,6 +4,8 @@
 - Objetivo: subir versiones del proyecto al maximo posible sin romper funcionalidades clave.
 - Fecha de inicio: 2026-04-22.
 - Estrategia actual: saltos grandes de version + validacion rapida para ahorrar tiempo.
+- Rama de trabajo acordada: `x/upgrade`.
+- Distribucion objetivo: Git/sideload (sin Play Store), priorizando funcionalidad incluso con features root.
 
 ## Estado base detectado
 - AGP: `8.2.0` (`build.gradle`).
@@ -60,11 +62,26 @@
 - 2026-04-22: se desacopla `debug` de `release` signing para permitir compilacion local.
 - 2026-04-22: `:app:assembleFdroidDebug` termina OK con AGP `9.1.1` y Gradle `9.3.1`.
 - 2026-04-22: `:app:compilePlaystoreReleaseJavaWithJavac` termina OK.
+- 2026-04-22: se elimina `android.enableJetifier=true` (deprecado en AGP 9/10).
+- 2026-04-22: `clean` migrado a `tasks.register(...)` en `build.gradle`.
+- 2026-04-22: `wifi` y `bluetooth` migrados a estrategia API->root->Settings.
+- 2026-04-22: permisos `BLUETOOTH_CONNECT` y `BLUETOOTH_SCAN` agregados (manifest + request runtime).
+- 2026-04-22: `status` endurecido para evitar `SecurityException` al leer bluetooth.
+- 2026-04-22: `app/build.gradle` migrado a sintaxis `prop = value` para compatibilidad con Gradle 10.
+- 2026-04-22: `:app:assembleFdroidDebug --warning-mode all` OK sin nuevos avisos en salida.
+- 2026-04-22: `LauncherActivity` endurecido para permisos runtime modernos (Bluetooth/notifications/storage) y degradacion sin cerrar app.
+- 2026-04-22: `registerReceiver` migrado a `ContextCompat.registerReceiver(...)` para compatibilidad API recientes.
+- 2026-04-22: comando `data` recuperado para API modernas con estrategia legacy->root->Settings.
 
 ## Pendiente inmediato
 - Ejecutar `assembleFdroidDebug` y `assemblePlaystoreRelease` con firma resuelta.
-- Limpiar deprecaciones para preparar salto futuro a Gradle 10 (Jetifier y scripts heredados).
+- Revisar avisos Android Studio/Lint que no bloquean build (API modernas, LocalBroadcastManager, overrides legacy).
 - Empezar fase de compatibilidad funcional (wifi/bluetooth/storage) en Android moderno.
+
+## Decisiones de compatibilidad funcional
+- No se elimina soporte root: se mantiene y se usa como fallback principal en toggles restringidos.
+- Cuando Android bloquea el toggle directo y no hay root, el comando abre ajustes del sistema para conservar UX.
+- El launcher no se cierra por denegar permisos no criticos; se inicia y degrada funciones afectadas.
 
 ## Lo que necesito para seguir mas rapido
 - Definir si quieres que elimine la firma `release` del tipo `debug` para compilar sin keystore local.

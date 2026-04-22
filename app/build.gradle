@@ -1,8 +1,8 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace "ohi.andre.consolelauncher"
-    compileSdk 35
+    namespace = "ohi.andre.consolelauncher"
+    compileSdk = 35
 
     def keystorePropertiesFile = rootProject.file("local.properties")
     def keystoreProperties = new Properties()
@@ -20,17 +20,17 @@ android {
     }
 
     defaultConfig {
-        applicationId "ohi.andre.consolelauncher"
-        minSdk 21
-        targetSdk 35
-        versionCode 301
-        versionName "v6.15.1-updated-v2"
+        applicationId = "ohi.andre.consolelauncher"
+        minSdk = 21
+        targetSdk = 35
+        versionCode = 301
+        versionName = "v6.15.1-updated-v2"
 
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildFeatures {
-        buildConfig true
+        buildConfig = true
     }
 
     buildTypes {
@@ -38,10 +38,10 @@ android {
             // Usa el keystore debug por defecto cuando no hay firma release local.
         }
         release {
-            minifyEnabled true
-            shrinkResources true
+            minifyEnabled = true
+            shrinkResources = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
+            signingConfig = signingConfigs.release
         }
     }
 
@@ -61,7 +61,7 @@ android {
     }
 
     lint {
-        checkReleaseBuilds false
+        checkReleaseBuilds = false
     }
 }
 

@@ -1,11 +1,13 @@
 package ohi.andre.consolelauncher.commands.main.raw;
 
+import android.content.Intent;
 import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.NetworkInfo.State;
-import android.net.wifi.WifiManager;
+import android.net.NetworkCapabilities;
 import android.os.Build;
+import android.provider.Settings;
 
 import java.lang.reflect.Field;
 
@@ -15,43 +17,82 @@ import ohi.andre.consolelauncher.commands.ExecutePack;
 import ohi.andre.consolelauncher.commands.main.MainPack;
 import ohi.andre.consolelauncher.commands.main.specific.APICommand;
 import ohi.andre.consolelauncher.tuils.Tuils;
+import ohi.andre.consolelauncher.tuils.libsuperuser.Shell;
 
 public class data implements APICommand, CommandAbstraction {
 
     @Override
     public String exec(ExecutePack pack) {
         MainPack info = (MainPack) pack;
-        boolean active = toggle(info);
-        return info.res.getString(R.string.output_data) + Tuils.SPACE + Boolean.toString(active);
+        boolean current = isMobileConnected(info);
+        boolean target = !current;
+
+        if (toggleLegacy(info, target)) {
+            return info.res.getString(R.string.output_data) + Tuils.SPACE + target;
+        }
+
+        if (Shell.SU.available() && toggleRoot(target)) {
+            return info.res.getString(R.string.output_data) + Tuils.SPACE + target + " (root)";
+        }
+
+        Intent settingsIntent = new Intent(Settings.ACTION_WIRELESS_SETTINGS);
+        settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        info.context.startActivity(settingsIntent);
+        return info.res.getString(R.string.output_opening_settings);
     }
 
-    private boolean toggle(MainPack info) {
+    private boolean toggleLegacy(MainPack info, boolean target) {
         if (info.connectivityMgr == null) {
             try {
                 init(info);
-            } catch (Exception e) {}
-        }
-
-        boolean mobileConnected;
-
-        if (info.wifi == null)
-            info.wifi = (WifiManager) info.context.getSystemService(Context.WIFI_SERVICE);
-
-        if (info.wifi.isWifiEnabled())
-            mobileConnected = true;
-        else {
-            NetworkInfo mobileInfo = info.connectivityMgr.getNetworkInfo(ConnectivityManager.TYPE_MOBILE);
-            State state = mobileInfo.getState();
-            mobileConnected = state == NetworkInfo.State.CONNECTED || state == NetworkInfo.State.CONNECTING;
+            } catch (Exception e) {
+                return false;
+            }
         }
 
         try {
-            info.setMobileDataEnabledMethod.invoke(info.connectMgr, !mobileConnected);
+            info.setMobileDataEnabledMethod.invoke(info.connectMgr, target);
+            return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            return false;
+        }
+    }
+
+    private boolean isMobileConnected(MainPack info) {
+        if (info.connectivityMgr == null) {
+            info.connectivityMgr = (ConnectivityManager) info.context.getSystemService(Context.CONNECTIVITY_SERVICE);
         }
 
-        return !mobileConnected;
+        if (info.connectivityMgr == null) {
+            return false;
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            android.net.Network network = info.connectivityMgr.getActiveNetwork();
+            if (network == null) return false;
+
+            NetworkCapabilities capabilities = info.connectivityMgr.getNetworkCapabilities(network);
+            return capabilities != null && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR);
+        }
+
+        NetworkInfo mobileInfo = info.connectivityMgr.getNetworkInfo(ConnectivityManager.TYPE_MOBILE);
+        if (mobileInfo == null) return false;
+
+        State state = mobileInfo.getState();
+        return state == NetworkInfo.State.CONNECTED || state == NetworkInfo.State.CONNECTING;
+    }
+
+    private boolean toggleRoot(boolean enable) {
+        String[] commands = new String[] {
+                "svc data " + (enable ? "enable" : "disable"),
+                "cmd phone data " + (enable ? "enable" : "disable")
+        };
+
+        try {
+            return Shell.SU.run(commands) != null;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private void init(MainPack info) throws Exception {
@@ -92,6 +133,6 @@ public class data implements APICommand, CommandAbstraction {
 
     @Override
     public boolean willWorkOn(int api) {
-        return api < Build.VERSION_CODES.LOLLIPOP;
+        return true;
     }
 }

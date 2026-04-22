@@ -180,6 +180,7 @@
     <string name="output_bluetooth">Bluetooth active:</string>
     <string name="output_bluetooth_unavailable">Bluetooth is not available on this device</string>
     <string name="output_airplane">Airplane mode active:</string>
+    <string name="output_opening_settings">Operation restricted by Android. Opening settings...</string>
 
     <!-- music -->
     <string name="output_playing">Playing:</string>

@@ -51,7 +51,6 @@ import ohi.andre.consolelauncher.managers.xml.options.Notifications;
 import ohi.andre.consolelauncher.managers.xml.options.Theme;
 import ohi.andre.consolelauncher.managers.xml.options.Ui;
 import ohi.andre.consolelauncher.tuils.Assist;
-import ohi.andre.consolelauncher.tuils.BusyBoxInstaller;
 import ohi.andre.consolelauncher.tuils.CustomExceptionHandler;
 import ohi.andre.consolelauncher.tuils.LongClickableSpan;
 import ohi.andre.consolelauncher.tuils.PrivateIOReceiver;
@@ -70,6 +69,7 @@ public class LauncherActivity extends AppCompatActivity implements Reloadable {
     public static final int LOCATION_REQUEST_PERMISSION = 13;
 
     public static final int TUIXT_REQUEST = 10;
+    private static final int MANAGE_STORAGE_REQUEST = 100;
 
     private UIManager ui;
     private MainManager main;
@@ -238,11 +238,11 @@ public class LauncherActivity extends AppCompatActivity implements Reloadable {
                     Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
                     intent.addCategory("android.intent.category.DEFAULT");
                     intent.setData(android.net.Uri.parse(String.format("package:%s", getApplicationContext().getPackageName())));
-                    startActivityForResult(intent, 100);
+                    startActivityForResult(intent, MANAGE_STORAGE_REQUEST);
                 } catch (Exception e) {
                     Intent intent = new Intent();
                     intent.setAction(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
-                    startActivityForResult(intent, 100);
+                    startActivityForResult(intent, MANAGE_STORAGE_REQUEST);
                 }
                 Toast.makeText(this, "Please grant storage permissions to T-UI", Toast.LENGTH_LONG).show();
             }
@@ -277,11 +277,14 @@ public class LauncherActivity extends AppCompatActivity implements Reloadable {
         filter1.addAction(PublicIOReceiver.ACTION_OUTPUT);
 
         publicIOReceiver = new PublicIOReceiver();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            getApplicationContext().registerReceiver(publicIOReceiver, filter1, "ohi.andre.consolelauncher.permission.RECEIVE_CMD", null, Context.RECEIVER_EXPORTED);
-        } else {
-            getApplicationContext().registerReceiver(publicIOReceiver, filter1, "ohi.andre.consolelauncher.permission.RECEIVE_CMD", null);
-        }
+        ContextCompat.registerReceiver(
+                getApplicationContext(),
+                publicIOReceiver,
+                filter1,
+                "ohi.andre.consolelauncher.permission.RECEIVE_CMD",
+                null,
+                ContextCompat.RECEIVER_EXPORTED
+        );
 
         int requestedOrientation = XMLPrefsManager.getInt(Behavior.orientation);
         if(requestedOrientation >= 0 && requestedOrientation != 2) {
@@ -481,7 +484,9 @@ public class LauncherActivity extends AppCompatActivity implements Reloadable {
     public void onBackPressed() {
         if (backButtonEnabled && main != null) {
             ui.onBackPressed();
+            return;
         }
+        super.onBackPressed();
     }
 
     @Override
@@ -560,6 +565,10 @@ public class LauncherActivity extends AppCompatActivity implements Reloadable {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
+        if (requestCode == MANAGE_STORAGE_REQUEST && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !android.os.Environment.isExternalStorageManager()) {
+            Toast.makeText(this, "Storage access is limited. Some file commands may fail.", Toast.LENGTH_LONG).show();
+        }
+
         if(requestCode == TUIXT_REQUEST && resultCode != 0) {
             if(resultCode == TuixtActivity.BACK_PRESSED) {
                 Tuils.sendOutput(this, R.string.tuixt_back_pressed);
@@ -571,7 +580,9 @@ public class LauncherActivity extends AppCompatActivity implements Reloadable {
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
-        if(permissions.length > 0 && permissions[0].equals(Manifest.permission.READ_CONTACTS) && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if(permissions.length > 0 && grantResults.length > 0 && permissions[0].equals(Manifest.permission.READ_CONTACTS) && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             LocalBroadcastManager.getInstance(this.getApplicationContext()).sendBroadcast(new Intent(ContactManager.ACTION_REFRESH));
         }
 
@@ -587,31 +598,23 @@ public class LauncherActivity extends AppCompatActivity implements Reloadable {
                     }
                     break;
                 case STARTING_PERMISSION:
+                    boolean hasDenied = false;
                     int count = 0;
                     while(count < permissions.length && count < grantResults.length) {
                         if(grantResults[count] == PackageManager.PERMISSION_DENIED) {
-                            Toast.makeText(this, R.string.permissions_toast, Toast.LENGTH_LONG).show();
-                            new Thread() {
-                                @Override
-                                public void run() {
-                                    super.run();
-
-                                    try {
-                                        sleep(2000);
-                                    } catch (InterruptedException e) {}
-
-                                    runOnUiThread(stopActivity);
-                                }
-                            }.start();
-                            return;
+                            hasDenied = true;
                         }
                         count++;
+                    }
+
+                    if(hasDenied) {
+                        Toast.makeText(this, "Some permissions were denied. Restricted features will fallback when possible.", Toast.LENGTH_LONG).show();
                     }
                     canApplyTheme = false;
                     finishOnCreate();
                     break;
                 case COMMAND_SUGGESTION_REQUEST_PERMISSION:
-                    if (grantResults.length == 0 && grantResults[0] != PackageManager.PERMISSION_GRANTED) {
+                    if (grantResults.length > 0 && grantResults[0] != PackageManager.PERMISSION_GRANTED) {
                         ui.setOutput(getString(R.string.output_nopermissions), TerminalManager.CATEGORY_OUTPUT);
                     }
                     break;
@@ -621,7 +624,7 @@ public class LauncherActivity extends AppCompatActivity implements Reloadable {
 //                    LocalBroadcastManager.getInstance(this.getApplicationContext()).sendBroadcast(i);
 
                     Intent i = new Intent(TuiLocationManager.ACTION_GOT_PERMISSION);
-                    i.putExtra(XMLPrefsManager.VALUE_ATTRIBUTE, grantResults[0]);
+                    i.putExtra(XMLPrefsManager.VALUE_ATTRIBUTE, grantResults.length > 0 ? grantResults[0] : PackageManager.PERMISSION_DENIED);
                     LocalBroadcastManager.getInstance(this.getApplicationContext()).sendBroadcast(i);
 
                     break;
