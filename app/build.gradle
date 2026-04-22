@@ -1,7 +1,7 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "ohi.andre.consolelauncher"
+    namespace = "x.tui.launcher"
     compileSdk = 35
 
     def keystorePropertiesFile = rootProject.file("local.properties")
@@ -20,7 +20,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "ohi.andre.consolelauncher"
+        applicationId = "x.tui.launcher"
         minSdk = 21
         targetSdk = 35
         versionCode = 301

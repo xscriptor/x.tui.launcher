@@ -1,15 +1,15 @@
--keep public class ohi.andre.consolelauncher.commands.main.raw.** { *; }
--keep public class ohi.andre.consolelauncher.commands.main.specific.** { *; }
--keep public class ohi.andre.consolelauncher.commands.tuixt.raw.** { *; }
--keep public class ohi.andre.consolelauncher.tuils.GenericFileProvider { *; }
--keep public class ohi.andre.consolelauncher.tuils.PrivateIOReceiver { *; }
--keep public class ohi.andre.consolelauncher.tuils.PublicIOReceiver { *; }
--keep class ohi.andre.consolelauncher.managers.** { *; }
--keep class ohi.andre.consolelauncher.tuils.libsuperuser.**
--keep class ohi.andre.consolelauncher.managers.suggestions.HideSuggestionViewValues
+-keep public class x.tui.launcher.commands.main.raw.** { *; }
+-keep public class x.tui.launcher.commands.main.specific.** { *; }
+-keep public class x.tui.launcher.commands.tuixt.raw.** { *; }
+-keep public class x.tui.launcher.tuils.GenericFileProvider { *; }
+-keep public class x.tui.launcher.tuils.PrivateIOReceiver { *; }
+-keep public class x.tui.launcher.tuils.PublicIOReceiver { *; }
+-keep class x.tui.launcher.managers.** { *; }
+-keep class x.tui.launcher.tuils.libsuperuser.**
+-keep class x.tui.launcher.managers.suggestions.HideSuggestionViewValues
 -keep public class it.andreuzzi.comparestring2.**
 
--dontwarn ohi.andre.consolelauncher.commands.main.raw.**
+-dontwarn x.tui.launcher.commands.main.raw.**
 
 -dontwarn javax.annotation.**
 -dontwarn javax.inject.**

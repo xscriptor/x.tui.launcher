@@ -67,10 +67,10 @@ bbman -remove
 adb logcat | grep ohi.andre
 
 # Uninstall the launcher via ADB
-adb uninstall ohi.andre.consolelauncher
+adb uninstall x.tui.launcher
 
 # Push a file to the launcher's internal storage
-adb push local_file.txt /data/user/0/ohi.andre.consolelauncher/files/
+adb push local_file.txt /data/user/0/x.tui.launcher/files/
 ```
 
 ---

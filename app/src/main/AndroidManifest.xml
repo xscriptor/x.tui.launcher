@@ -75,7 +75,7 @@
         android:required="false" />
 
     <permission
-        android:name="ohi.andre.consolelauncher.permission.RECEIVE_CMD"
+        android:name="x.tui.launcher.permission.RECEIVE_CMD"
         android:protectionLevel="signature" />
 
     <application

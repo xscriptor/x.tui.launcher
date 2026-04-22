@@ -65,12 +65,12 @@
 
         android:layout_above="@id/tools_view">
 
-        <ohi.andre.consolelauncher.tuils.OutlineTextView
+        <x.tui.launcher.tuils.OutlineTextView
             android:id="@+id/prefix_view"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"/>
 
-        <ohi.andre.consolelauncher.tuils.OutlineEditText
+        <x.tui.launcher.tuils.OutlineEditText
             android:id="@+id/input_view"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -125,7 +125,7 @@
                 android:layout_weight="1"
                 android:layout_height="match_parent"/>
 
-            <ohi.andre.consolelauncher.tuils.OutlineTextView
+            <x.tui.launcher.tuils.OutlineTextView
                 android:id="@+id/terminal_view"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
