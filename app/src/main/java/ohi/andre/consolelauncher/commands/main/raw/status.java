@@ -88,7 +88,13 @@ public class status implements CommandAbstraction {
         boolean bluetoothOn;
 
         if(adapter == null) bluetoothOn = false;
-        else bluetoothOn = adapter.isEnabled();
+        else {
+            try {
+                bluetoothOn = adapter.isEnabled();
+            } catch (SecurityException e) {
+                bluetoothOn = false;
+            }
+        }
 
         StringBuilder builder = new StringBuilder();
         builder

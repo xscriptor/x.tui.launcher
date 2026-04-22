@@ -108,7 +108,8 @@ public class UIManager implements OnTouchListener {
         network,
         notes,
         weather,
-        unlock
+        unlock,
+        header
     }
 
     private final int RAM_DELAY = 3000;
@@ -759,6 +760,44 @@ public class UIManager implements OnTouchListener {
         }
     }
 
+    private HeaderRunnable headerRunnable;
+    private class HeaderRunnable implements Runnable {
+        int updateTime = 5000; // Se actualiza cada 5 segundos
+
+        @Override
+        public void run() {
+            File folder = Tuils.getFolder();
+            if (folder == null) {
+                handler.postDelayed(this, updateTime);
+                return;
+            }
+
+            // Buscar el archivo header: primero "header", luego "header.txt"
+            File headerFile = new File(folder, "header");
+            if (!headerFile.exists()) {
+                headerFile = new File(folder, "header.txt");
+            }
+
+            if (headerFile.exists()) {
+                try {
+                    String text = Tuils.convertStreamToString(new java.io.FileInputStream(headerFile));
+                    if (text != null && text.length() > 0) {
+                        int color = Color.parseColor("#33B5E5");
+                        CharSequence coloredString = Tuils.span(text, color);
+                        UIManager.this.updateText(Label.header, Tuils.span(mContext, labelSizes[Label.header.ordinal()], coloredString));
+                    } else {
+                        UIManager.this.updateText(Label.header, "");
+                    }
+                } catch (Exception e) {
+                    Tuils.log(e);
+                }
+            } else {
+                UIManager.this.updateText(Label.header, ""); // Lo oculta si el archivo no existe
+            }
+            handler.postDelayed(this, updateTime);
+        }
+    }
+
     private SuggestionsManager suggestionsManager;
 
     private TextView terminalView;
@@ -1001,6 +1040,7 @@ public class UIManager implements OnTouchListener {
         labelSizes[Label.device.ordinal()] = XMLPrefsManager.getInt(Ui.device_size);
         labelSizes[Label.weather.ordinal()] = XMLPrefsManager.getInt(Ui.weather_size);
         labelSizes[Label.unlock.ordinal()] = XMLPrefsManager.getInt(Ui.unlock_size);
+        labelSizes[Label.header.ordinal()] = 14; // NUEVO
 
         labelViews = new TextView[] {
                 (TextView) rootView.findViewById(R.id.tv0),
@@ -1012,6 +1052,7 @@ public class UIManager implements OnTouchListener {
                 (TextView) rootView.findViewById(R.id.tv6),
                 (TextView) rootView.findViewById(R.id.tv7),
                 (TextView) rootView.findViewById(R.id.tv8),
+                (TextView) rootView.findViewById(R.id.tv9)
         };
 
         boolean[] show = new boolean[Label.values().length];
@@ -1024,6 +1065,7 @@ public class UIManager implements OnTouchListener {
         show[Label.storage.ordinal()] = XMLPrefsManager.getBoolean(Ui.show_storage_info);
         show[Label.weather.ordinal()] = XMLPrefsManager.getBoolean(Ui.show_weather);
         show[Label.unlock.ordinal()] = XMLPrefsManager.getBoolean(Ui.show_unlock_counter);
+        show[Label.header.ordinal()] = true; // NUEVO
 
         float[] indexes = new float[Label.values().length];
         indexes[Label.notes.ordinal()] = show[Label.notes.ordinal()] ? XMLPrefsManager.getFloat(Ui.notes_index) : Integer.MAX_VALUE;
@@ -1035,10 +1077,11 @@ public class UIManager implements OnTouchListener {
         indexes[Label.storage.ordinal()] = show[Label.storage.ordinal()] ? XMLPrefsManager.getFloat(Ui.storage_index) : Integer.MAX_VALUE;
         indexes[Label.weather.ordinal()] = show[Label.weather.ordinal()] ? XMLPrefsManager.getFloat(Ui.weather_index) : Integer.MAX_VALUE;
         indexes[Label.unlock.ordinal()] = show[Label.unlock.ordinal()] ? XMLPrefsManager.getFloat(Ui.unlock_index) : Integer.MAX_VALUE;
+        indexes[Label.header.ordinal()] = 0f; // NUEVO
 
-        int[] statusLineAlignments = getListOfIntValues(XMLPrefsManager.get(Ui.status_lines_alignment), 9, -1);
+        int[] statusLineAlignments = getListOfIntValues(XMLPrefsManager.get(Ui.status_lines_alignment), 10, -1);
 
-        String[] statusLinesBgRectColors = getListOfStringValues(XMLPrefsManager.get(Theme.status_lines_bgrectcolor), 9, "#ff000000");
+        String[] statusLinesBgRectColors = getListOfStringValues(XMLPrefsManager.get(Theme.status_lines_bgrectcolor), 10, "#ff000000");
         String[] otherBgRectColors = {
                 XMLPrefsManager.get(Theme.input_bgrectcolor),
                 XMLPrefsManager.get(Theme.output_bgrectcolor),
@@ -1049,7 +1092,7 @@ public class UIManager implements OnTouchListener {
         System.arraycopy(statusLinesBgRectColors, 0, bgRectColors, 0, statusLinesBgRectColors.length);
         System.arraycopy(otherBgRectColors, 0, bgRectColors, statusLinesBgRectColors.length, otherBgRectColors.length);
 
-        String[] statusLineBgColors = getListOfStringValues(XMLPrefsManager.get(Theme.status_lines_bg), 9, "#00000000");
+        String[] statusLineBgColors = getListOfStringValues(XMLPrefsManager.get(Theme.status_lines_bg), 10, "#00000000");
         String[] otherBgColors = {
                 XMLPrefsManager.get(Theme.input_bg),
                 XMLPrefsManager.get(Theme.output_bg),
@@ -1060,14 +1103,14 @@ public class UIManager implements OnTouchListener {
         System.arraycopy(statusLineBgColors, 0, bgColors, 0, statusLineBgColors.length);
         System.arraycopy(otherBgColors, 0, bgColors, statusLineBgColors.length, otherBgColors.length);
 
-        String[] statusLineOutlineColors = getListOfStringValues(XMLPrefsManager.get(Theme.status_lines_shadow_color), 9, "#00000000");
+        String[] statusLineOutlineColors = getListOfStringValues(XMLPrefsManager.get(Theme.status_lines_shadow_color), 10, "#00000000");
         String[] otherOutlineColors = {
                 XMLPrefsManager.get(Theme.input_shadow_color),
                 XMLPrefsManager.get(Theme.output_shadow_color),
         };
         String[] outlineColors = new String[statusLineOutlineColors.length + otherOutlineColors.length];
         System.arraycopy(statusLineOutlineColors, 0, outlineColors, 0, statusLineOutlineColors.length);
-        System.arraycopy(otherOutlineColors, 0, outlineColors, 9, otherOutlineColors.length);
+        System.arraycopy(otherOutlineColors, 0, outlineColors, statusLineOutlineColors.length, otherOutlineColors.length);
 
         int shadowXOffset, shadowYOffset;
         float shadowRadius;
@@ -1076,10 +1119,10 @@ public class UIManager implements OnTouchListener {
         shadowYOffset = Integer.parseInt(shadowParams[1]);
         shadowRadius = Float.parseFloat(shadowParams[2]);
 
-        final int INPUT_BGCOLOR_INDEX = 9;
-        final int OUTPUT_BGCOLOR_INDEX = 10;
-        final int SUGGESTIONS_BGCOLOR_INDEX = 11;
-        final int TOOLBAR_BGCOLOR_INDEX = 12;
+        final int INPUT_BGCOLOR_INDEX = 10;
+        final int OUTPUT_BGCOLOR_INDEX = 11;
+        final int SUGGESTIONS_BGCOLOR_INDEX = 12;
+        final int TOOLBAR_BGCOLOR_INDEX = 13;
 
         int strokeWidth, cornerRadius;
         String[] rectParams = getListOfStringValues(XMLPrefsManager.get(Ui.bgrect_params), 2, "0");
@@ -1192,6 +1235,10 @@ public class UIManager implements OnTouchListener {
         if(show[Label.network.ordinal()]) {
             networkRunnable = new NetworkRunnable();
             handler.post(networkRunnable);
+        }
+        if(show[Label.header.ordinal()]) {
+            headerRunnable = new HeaderRunnable();
+            handler.post(headerRunnable);
         }
 
         final TextView notesView = getLabelView(Label.notes);

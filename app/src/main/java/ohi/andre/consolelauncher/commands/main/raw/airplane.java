@@ -10,6 +10,7 @@ import ohi.andre.consolelauncher.commands.CommandAbstraction;
 import ohi.andre.consolelauncher.commands.ExecutePack;
 import ohi.andre.consolelauncher.commands.main.MainPack;
 import ohi.andre.consolelauncher.commands.main.specific.APICommand;
+import ohi.andre.consolelauncher.tuils.libsuperuser.Shell;
 
 /**
  * Created by andre on 03/12/15.
@@ -19,17 +20,49 @@ public class airplane implements APICommand, CommandAbstraction {
     @Override
     public String exec(ExecutePack pack) {
         MainPack info = (MainPack) pack;
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            boolean isEnabled = isEnabled(info.context);
-            Settings.System.putInt(info.context.getContentResolver(), Settings.System.AIRPLANE_MODE_ON, isEnabled ? 0 : 1);
+        boolean enabled = isEnabled(info.context);
+        boolean target = !enabled;
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR1 && toggleLegacy(info.context, target)) {
+            return info.res.getString(R.string.output_airplane) + target;
+        }
+
+        if (Shell.SU.available() && toggleRoot(target)) {
+            return info.res.getString(R.string.output_airplane) + target + " (root)";
+        }
+
+        Intent settingsIntent = new Intent(Settings.ACTION_WIRELESS_SETTINGS);
+        settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        info.context.startActivity(settingsIntent);
+        return info.res.getString(R.string.output_opening_settings);
+    }
+
+    private boolean toggleLegacy(Context context, boolean enable) {
+        try {
+            Settings.System.putInt(context.getContentResolver(), Settings.System.AIRPLANE_MODE_ON, enable ? 1 : 0);
 
             Intent intent = new Intent(Intent.ACTION_AIRPLANE_MODE_CHANGED);
-            intent.putExtra("state", !isEnabled);
-            info.context.sendBroadcast(intent);
-
-            return info.res.getString(R.string.output_airplane) + !isEnabled;
+            intent.putExtra("state", enable);
+            context.sendBroadcast(intent);
+            return true;
+        } catch (Exception e) {
+            return false;
         }
-        return null;
+    }
+
+    private boolean toggleRoot(boolean enable) {
+        String state = enable ? "1" : "0";
+
+        String[] commands = new String[] {
+                "settings put global airplane_mode_on " + state,
+                "am broadcast -a android.intent.action.AIRPLANE_MODE --ez state " + (enable ? "true" : "false")
+        };
+
+        try {
+            return Shell.SU.run(commands) != null;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private boolean isEnabled(Context context) {
@@ -63,6 +96,6 @@ public class airplane implements APICommand, CommandAbstraction {
 
     @Override
     public boolean willWorkOn(int api) {
-        return api < Build.VERSION_CODES.JELLY_BEAN_MR1;
+        return true;
     }
 }
