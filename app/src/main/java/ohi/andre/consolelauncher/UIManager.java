@@ -1,4 +1,4 @@
-package de.reckendrees.systems.tui.expert;
+package ohi.andre.consolelauncher;
 
 import android.app.Activity;
 import android.app.ActivityManager;
@@ -11,21 +11,23 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
+import android.location.Location;
 import android.net.ConnectivityManager;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
-import android.os.AsyncTask;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Handler;
-import android.support.v4.content.LocalBroadcastManager;
-import android.support.v4.view.GestureDetectorCompat;
+import androidx.core.app.ActivityCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+import androidx.core.view.GestureDetectorCompat;
+import android.text.SpannableString;
 import android.text.TextUtils;
 import android.text.method.LinkMovementMethod;
 import android.util.DisplayMetrics;
-import android.util.Log;
 import android.view.GestureDetector;
 import android.view.GestureDetector.OnDoubleTapListener;
 import android.view.Gravity;
@@ -44,47 +46,42 @@ import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import de.reckendrees.systems.tui.expert.BuildConfig;
-import de.reckendrees.systems.tui.expert.commands.main.MainPack;
-import de.reckendrees.systems.tui.expert.commands.main.specific.RedirectCommand;
-import de.reckendrees.systems.tui.expert.managers.HTMLExtractManager;
-import de.reckendrees.systems.tui.expert.managers.NotesManager;
-import de.reckendrees.systems.tui.expert.managers.TerminalManager;
-import de.reckendrees.systems.tui.expert.managers.TimeManager;
-import de.reckendrees.systems.tui.expert.managers.TuiLocationManager;
-import de.reckendrees.systems.tui.expert.managers.suggestions.SuggestionTextWatcher;
-import de.reckendrees.systems.tui.expert.managers.suggestions.SuggestionsManager;
-import de.reckendrees.systems.tui.expert.managers.xml.XMLPrefsManager;
-import de.reckendrees.systems.tui.expert.managers.xml.options.Behavior;
-import de.reckendrees.systems.tui.expert.managers.xml.options.Suggestions;
-import de.reckendrees.systems.tui.expert.managers.xml.options.Theme;
-import de.reckendrees.systems.tui.expert.managers.xml.options.Toolbar;
-import de.reckendrees.systems.tui.expert.managers.xml.options.Ui;
-import de.reckendrees.systems.tui.expert.managers.xml.options.Expert;
-import de.reckendrees.systems.tui.expert.tasks.getCommandOutputTask;
-import de.reckendrees.systems.tui.expert.tuils.AllowEqualsSequence;
-import de.reckendrees.systems.tui.expert.tuils.NetworkUtils;
-import de.reckendrees.systems.tui.expert.tuils.OutlineTextView;
-import de.reckendrees.systems.tui.expert.tuils.Tuils;
-import de.reckendrees.systems.tui.expert.tuils.interfaces.CommandExecuter;
-import de.reckendrees.systems.tui.expert.tuils.interfaces.OnBatteryUpdate;
-import de.reckendrees.systems.tui.expert.tuils.interfaces.OnCommandUpdate;
-import de.reckendrees.systems.tui.expert.tuils.interfaces.OnRedirectionListener;
-import de.reckendrees.systems.tui.expert.tuils.libsuperuser.Shell;
-import de.reckendrees.systems.tui.expert.tuils.stuff.PolicyReceiver;
+import ohi.andre.consolelauncher.commands.main.MainPack;
+import ohi.andre.consolelauncher.commands.main.specific.RedirectCommand;
+import ohi.andre.consolelauncher.managers.HTMLExtractManager;
+import ohi.andre.consolelauncher.managers.NotesManager;
+import ohi.andre.consolelauncher.managers.TerminalManager;
+import ohi.andre.consolelauncher.managers.TimeManager;
+import ohi.andre.consolelauncher.managers.TuiLocationManager;
+import ohi.andre.consolelauncher.managers.suggestions.SuggestionTextWatcher;
+import ohi.andre.consolelauncher.managers.suggestions.SuggestionsManager;
+import ohi.andre.consolelauncher.managers.xml.XMLPrefsManager;
+import ohi.andre.consolelauncher.managers.xml.options.Behavior;
+import ohi.andre.consolelauncher.managers.xml.options.Suggestions;
+import ohi.andre.consolelauncher.managers.xml.options.Theme;
+import ohi.andre.consolelauncher.managers.xml.options.Toolbar;
+import ohi.andre.consolelauncher.managers.xml.options.Ui;
+import ohi.andre.consolelauncher.tuils.AllowEqualsSequence;
+import ohi.andre.consolelauncher.tuils.NetworkUtils;
+import ohi.andre.consolelauncher.tuils.OutlineEditText;
+import ohi.andre.consolelauncher.tuils.OutlineTextView;
+import ohi.andre.consolelauncher.tuils.Tuils;
+import ohi.andre.consolelauncher.tuils.interfaces.CommandExecuter;
+import ohi.andre.consolelauncher.tuils.interfaces.OnBatteryUpdate;
+import ohi.andre.consolelauncher.tuils.interfaces.OnRedirectionListener;
+import ohi.andre.consolelauncher.tuils.interfaces.OnTextChanged;
+import ohi.andre.consolelauncher.tuils.stuff.PolicyReceiver;
 
 public class UIManager implements OnTouchListener {
 
@@ -112,7 +109,7 @@ public class UIManager implements OnTouchListener {
         notes,
         weather,
         unlock,
-        custom_command
+        header
     }
 
     private final int RAM_DELAY = 3000;
@@ -166,50 +163,8 @@ public class UIManager implements OnTouchListener {
                 handler.postDelayed(this, updateTime);
             }
         }
-    }
-    //runnable for executing commands
-    private CommandRunnable commandRunnable;
-    private class CommandRunnable implements Runnable{
-        int updateTime = XMLPrefsManager.getInt(Expert.custom_command_timeout);
-        OnCommandUpdate commandUpdate;
-        public CommandRunnable(OnCommandUpdate newCommandUpdate){
-            this.commandUpdate = newCommandUpdate;
-        }
-        @Override
-        public void run(){
-            Log.d("TUI-E",XMLPrefsManager.getString(Expert.custom_command));
-            getCommandOutputTask getCommandOutputTask = new getCommandOutputTask(this, commandUpdate);
-            getCommandOutputTask.execute(XMLPrefsManager.getString(Expert.custom_command));
-        }
-    }
+    };
 
-    private CommandUpdate commandUpdate;
-    private class CommandUpdate implements OnCommandUpdate{
-        @Override
-        public void update(String updateString, Runnable runnable){
-            int updateTime = XMLPrefsManager.getInt(Expert.custom_command_timeout);
-            int stringColor;
-            String colorString = XMLPrefsManager.getString(Theme.custom_command_color);
-            if(colorString.startsWith("#")) {
-                try {
-                    stringColor = Color.parseColor(colorString);
-                } catch (Exception e) {
-                    stringColor = Color.RED;
-                }
-            } else {
-                //i dont really get what francescoandreuzzi did here, will check it later
-                try {
-                    stringColor = Color.parseColor("#".concat(colorString));
-                } catch (Exception e) {
-                    stringColor = Color.RED;
-                }
-            }
-            CharSequence coloredString = Tuils.span(updateString,stringColor);
-            UIManager.this.updateText(Label.custom_command, Tuils.span(mContext, labelSizes[Label.custom_command.ordinal()], coloredString));
-            Log.d("TUI-E",updateString);
-            handler.postDelayed(runnable, updateTime*1000);
-        }
-    }
     private BatteryUpdate batteryUpdate;
     private class BatteryUpdate implements OnBatteryUpdate {
 
@@ -767,11 +722,11 @@ public class UIManager implements OnTouchListener {
         }
 
         private void setUrl(String where) {
-            url = "http://api.openweathermap.org/data/2.5/weather?" + where + "&appid=" + key + "&units=" + XMLPrefsManager.get(Behavior.weather_temperature_measure);
+            url = "https://api.openweathermap.org/data/2.5/weather?" + where + "&appid=" + key + "&units=" + XMLPrefsManager.get(Behavior.weather_temperature_measure);
         }
 
         private void setUrl(double latitude, double longitude) {
-            url = "http://api.openweathermap.org/data/2.5/weather?" + "lat=" + latitude + "&lon=" + longitude + "&appid=" + key + "&units=" + XMLPrefsManager.get(Behavior.weather_temperature_measure);
+            url = "https://api.openweathermap.org/data/2.5/weather?" + "lat=" + latitude + "&lon=" + longitude + "&appid=" + key + "&units=" + XMLPrefsManager.get(Behavior.weather_temperature_measure);
         }
     }
 
@@ -802,6 +757,29 @@ public class UIManager implements OnTouchListener {
         else {
             labelViews[base].setVisibility(View.VISIBLE);
             labelViews[base].setText(sequence);
+        }
+    }
+
+    private HeaderRunnable headerRunnable;
+    private class HeaderRunnable implements Runnable {
+        int updateTime = 5000; // Se actualiza cada 5 segundos
+
+        @Override
+        public void run() {
+            File headerFile = new File(Tuils.getFolder(), "header.txt");
+            if (headerFile.exists()) {
+                try {
+                    String text = Tuils.convertStreamToString(new java.io.FileInputStream(headerFile));
+                    int color = Color.parseColor("#33B5E5"); // Puedes cambiar el color hexadecimal aquí
+                    CharSequence coloredString = Tuils.span(text, color);
+                    UIManager.this.updateText(Label.header, Tuils.span(mContext, labelSizes[Label.header.ordinal()], coloredString));
+                } catch (Exception e) {
+                    Tuils.log(e);
+                }
+            } else {
+                UIManager.this.updateText(Label.header, ""); // Lo oculta si el archivo no existe
+            }
+            handler.postDelayed(this, updateTime);
         }
     }
 
@@ -881,20 +859,17 @@ public class UIManager implements OnTouchListener {
                     updateText(Label.weather, s);
 
                     if(showWeatherUpdate) {
-                        String message = context.getString(de.reckendrees.systems.tui.expert.R.string.weather_updated) + Tuils.SPACE + c.get(Calendar.HOUR_OF_DAY) + "." + c.get(Calendar.MINUTE) + Tuils.SPACE + "(" + lastLatitude + ", " + lastLongitude + ")";
+                        String message = context.getString(R.string.weather_updated) + Tuils.SPACE + c.get(Calendar.HOUR_OF_DAY) + "." + c.get(Calendar.MINUTE) + Tuils.SPACE + "(" + lastLatitude + ", " + lastLongitude + ")";
                         Tuils.sendOutput(context, message, TerminalManager.CATEGORY_OUTPUT);
                     }
                 } else if(action.equals(ACTION_WEATHER_GOT_LOCATION)) {
-//                    int result = intent.getIntExtra(XMLPrefsManager.VALUE_ATTRIBUTE, 0);
-//                    if(result == PackageManager.PERMISSION_DENIED) {
-//                        updateText(Label.weather, Tuils.span(context, context.getString(R.string.location_error), weatherColor, labelSizes[Label.weather.ordinal()]));
-//                    } else handler.post(weatherRunnable);
-
                     if(intent.getBooleanExtra(TuiLocationManager.FAIL, false)) {
-                        handler.removeCallbacks(weatherRunnable);
-                        weatherRunnable = null;
+                        if (weatherRunnable != null) {
+                            handler.removeCallbacks(weatherRunnable);
+                            weatherRunnable = null;
+                        }
 
-                        CharSequence s = Tuils.span(context, context.getString(de.reckendrees.systems.tui.expert.R.string.location_error), weatherColor, labelSizes[Label.weather.ordinal()]);
+                        CharSequence s = Tuils.span(context, context.getString(R.string.location_error), weatherColor, labelSizes[Label.weather.ordinal()]);
 
                         updateText(Label.weather, s);
                     } else {
@@ -904,8 +879,10 @@ public class UIManager implements OnTouchListener {
                         location = Tuils.locationName(context, lastLatitude, lastLongitude);
 
                         if(!weatherPerformedStartupRun || XMLPrefsManager.wasChanged(Behavior.weather_key, false)) {
-                            handler.removeCallbacks(weatherRunnable);
-                            handler.post(weatherRunnable);
+                            if (weatherRunnable != null) {
+                                handler.removeCallbacks(weatherRunnable);
+                                handler.post(weatherRunnable);
+                            }
                         }
                     }
                 } else if(action.equals(ACTION_WEATHER_DELAY)) {
@@ -913,14 +890,19 @@ public class UIManager implements OnTouchListener {
                     c.setTimeInMillis(System.currentTimeMillis() + 1000 * 10);
 
                     if(showWeatherUpdate) {
-                        String message = context.getString(de.reckendrees.systems.tui.expert.R.string.weather_error) + Tuils.SPACE + c.get(Calendar.HOUR_OF_DAY) + "." + c.get(Calendar.MINUTE);
+                        String message = context.getString(R.string.weather_error) + Tuils.SPACE + c.get(Calendar.HOUR_OF_DAY) + "." + c.get(Calendar.MINUTE);
                         Tuils.sendOutput(context, message, TerminalManager.CATEGORY_OUTPUT);
                     }
 
-                    handler.removeCallbacks(weatherRunnable);
-                    handler.postDelayed(weatherRunnable, 1000 * 60);
+                    if (weatherRunnable != null) {
+                        handler.removeCallbacks(weatherRunnable);
+                        handler.postDelayed(weatherRunnable, 1000 * 60);
+                    }
                 } else if(action.equals(ACTION_WEATHER_MANUAL_UPDATE)) {
-                    handler.removeCallbacks(weatherRunnable);
+                    if (weatherRunnable != null) {
+                        handler.removeCallbacks(weatherRunnable);
+                    }
+                    weatherRunnable = new WeatherRunnable();
                     handler.post(weatherRunnable);
                 }
             }
@@ -1015,19 +997,14 @@ public class UIManager implements OnTouchListener {
                     }
 
                     if(lockOnDbTap) {
-                        if(XMLPrefsManager.getBoolean(Expert.use_root)){
-                            Shell.SU.run("input keyevent 26");
-                        }else{
-                            boolean admin = policy.isAdminActive(component);
+                        boolean admin = policy.isAdminActive(component);
 
-                            if (!admin) {
-                                Intent i = Tuils.requestAdmin(component, mContext.getString(de.reckendrees.systems.tui.expert.R.string.admin_permission));
-                                mContext.startActivity(i);
-                            } else {
-                                policy.lockNow();
-                            }
+                        if (!admin) {
+                            Intent i = Tuils.requestAdmin(component, mContext.getString(R.string.admin_permission));
+                            mContext.startActivity(i);
+                        } else {
+                            policy.lockNow();
                         }
-
                     }
 
                     return true;
@@ -1038,7 +1015,7 @@ public class UIManager implements OnTouchListener {
         int[] displayMargins = getListOfIntValues(XMLPrefsManager.get(Ui.display_margin_mm), 4, 0);
         DisplayMetrics metrics = mContext.getResources().getDisplayMetrics();
         rootView.setPadding(Tuils.mmToPx(metrics, displayMargins[0]), Tuils.mmToPx(metrics, displayMargins[1]), Tuils.mmToPx(metrics, displayMargins[2]), Tuils.mmToPx(metrics, displayMargins[3]));
-        //add new values to the following array to create a new status line
+
         labelSizes[Label.time.ordinal()] = XMLPrefsManager.getInt(Ui.time_size);
         labelSizes[Label.ram.ordinal()] = XMLPrefsManager.getInt(Ui.ram_size);
         labelSizes[Label.battery.ordinal()] = XMLPrefsManager.getInt(Ui.battery_size);
@@ -1048,18 +1025,19 @@ public class UIManager implements OnTouchListener {
         labelSizes[Label.device.ordinal()] = XMLPrefsManager.getInt(Ui.device_size);
         labelSizes[Label.weather.ordinal()] = XMLPrefsManager.getInt(Ui.weather_size);
         labelSizes[Label.unlock.ordinal()] = XMLPrefsManager.getInt(Ui.unlock_size);
-        labelSizes[Label.custom_command.ordinal()] = XMLPrefsManager.getInt(Expert.custom_command_size);
+        labelSizes[Label.header.ordinal()] = 14; // NUEVO
+
         labelViews = new TextView[] {
-                (TextView) rootView.findViewById(de.reckendrees.systems.tui.expert.R.id.tv0),
-                (TextView) rootView.findViewById(de.reckendrees.systems.tui.expert.R.id.tv1),
-                (TextView) rootView.findViewById(de.reckendrees.systems.tui.expert.R.id.tv2),
-                (TextView) rootView.findViewById(de.reckendrees.systems.tui.expert.R.id.tv3),
-                (TextView) rootView.findViewById(de.reckendrees.systems.tui.expert.R.id.tv4),
-                (TextView) rootView.findViewById(de.reckendrees.systems.tui.expert.R.id.tv5),
-                (TextView) rootView.findViewById(de.reckendrees.systems.tui.expert.R.id.tv6),
-                (TextView) rootView.findViewById(de.reckendrees.systems.tui.expert.R.id.tv7),
-                (TextView) rootView.findViewById(de.reckendrees.systems.tui.expert.R.id.tv8),
-                (TextView) rootView.findViewById(de.reckendrees.systems.tui.expert.R.id.tv9)
+                (TextView) rootView.findViewById(R.id.tv0),
+                (TextView) rootView.findViewById(R.id.tv1),
+                (TextView) rootView.findViewById(R.id.tv2),
+                (TextView) rootView.findViewById(R.id.tv3),
+                (TextView) rootView.findViewById(R.id.tv4),
+                (TextView) rootView.findViewById(R.id.tv5),
+                (TextView) rootView.findViewById(R.id.tv6),
+                (TextView) rootView.findViewById(R.id.tv7),
+                (TextView) rootView.findViewById(R.id.tv8),
+                (TextView) rootView.findViewById(R.id.tv9)
         };
 
         boolean[] show = new boolean[Label.values().length];
@@ -1072,7 +1050,8 @@ public class UIManager implements OnTouchListener {
         show[Label.storage.ordinal()] = XMLPrefsManager.getBoolean(Ui.show_storage_info);
         show[Label.weather.ordinal()] = XMLPrefsManager.getBoolean(Ui.show_weather);
         show[Label.unlock.ordinal()] = XMLPrefsManager.getBoolean(Ui.show_unlock_counter);
-        show[Label.custom_command.ordinal()] = XMLPrefsManager.getBoolean(Expert.show_custom_command);
+        show[Label.header.ordinal()] = true; // NUEVO
+
         float[] indexes = new float[Label.values().length];
         indexes[Label.notes.ordinal()] = show[Label.notes.ordinal()] ? XMLPrefsManager.getFloat(Ui.notes_index) : Integer.MAX_VALUE;
         indexes[Label.ram.ordinal()] = show[Label.ram.ordinal()] ? XMLPrefsManager.getFloat(Ui.ram_index) : Integer.MAX_VALUE;
@@ -1083,7 +1062,8 @@ public class UIManager implements OnTouchListener {
         indexes[Label.storage.ordinal()] = show[Label.storage.ordinal()] ? XMLPrefsManager.getFloat(Ui.storage_index) : Integer.MAX_VALUE;
         indexes[Label.weather.ordinal()] = show[Label.weather.ordinal()] ? XMLPrefsManager.getFloat(Ui.weather_index) : Integer.MAX_VALUE;
         indexes[Label.unlock.ordinal()] = show[Label.unlock.ordinal()] ? XMLPrefsManager.getFloat(Ui.unlock_index) : Integer.MAX_VALUE;
-        indexes[Label.custom_command.ordinal()] = show[Label.custom_command.ordinal()] ? XMLPrefsManager.getFloat(Expert.custom_command_index) : Integer.MAX_VALUE;
+        indexes[Label.header.ordinal()] = 0f; // NUEVO
+
         int[] statusLineAlignments = getListOfIntValues(XMLPrefsManager.get(Ui.status_lines_alignment), 9, -1);
 
         String[] statusLinesBgRectColors = getListOfStringValues(XMLPrefsManager.get(Theme.status_lines_bgrectcolor), 9, "#ff000000");
@@ -1209,7 +1189,7 @@ public class UIManager implements OnTouchListener {
             String deviceFormat = XMLPrefsManager.get(Behavior.device_format);
 
             String username = XMLPrefsManager.get(Ui.username);
-            String deviceName = XMLPrefsManager.get(Ui.device_name);
+            String deviceName = XMLPrefsManager.get(Ui.deviceName);
             if (deviceName == null || deviceName.length() == 0) {
                 deviceName = Build.DEVICE;
             }
@@ -1241,10 +1221,9 @@ public class UIManager implements OnTouchListener {
             networkRunnable = new NetworkRunnable();
             handler.post(networkRunnable);
         }
-        if(show[Label.custom_command.ordinal()]) {
-            commandUpdate = new CommandUpdate();
-            commandRunnable = new CommandRunnable(commandUpdate);
-            handler.post(commandRunnable);
+        if(show[Label.header.ordinal()]) {
+            headerRunnable = new HeaderRunnable();
+            handler.post(headerRunnable);
         }
 
         final TextView notesView = getLabelView(Label.notes);
@@ -1270,7 +1249,7 @@ public class UIManager implements OnTouchListener {
                         @Override
                         public void onGlobalLayout() {
                             if(notesView.getLineCount() > notesMaxLines && linesBefore <= notesMaxLines) {
-                                Tuils.sendOutput(Color.RED, context, de.reckendrees.systems.tui.expert.R.string.note_max_reached);
+                                Tuils.sendOutput(Color.RED, context, R.string.note_max_reached);
                             }
 
                             linesBefore = notesView.getLineCount();
@@ -1335,30 +1314,30 @@ public class UIManager implements OnTouchListener {
         }
 
         final boolean inputBottom = XMLPrefsManager.getBoolean(Ui.input_bottom);
-        int layoutId = inputBottom ? de.reckendrees.systems.tui.expert.R.layout.input_down_layout : de.reckendrees.systems.tui.expert.R.layout.input_up_layout;
+        int layoutId = inputBottom ? R.layout.input_down_layout : R.layout.input_up_layout;
 
         LayoutInflater inflater = (LayoutInflater) mContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         View inputOutputView = inflater.inflate(layoutId, null);
         rootView.addView(inputOutputView);
 
-        terminalView = (TextView) inputOutputView.findViewById(de.reckendrees.systems.tui.expert.R.id.terminal_view);
+        terminalView = (TextView) inputOutputView.findViewById(R.id.terminal_view);
         terminalView.setOnTouchListener(this);
         ((View) terminalView.getParent().getParent()).setOnTouchListener(this);
 
         applyBgRect(terminalView, bgRectColors[OUTPUT_BGCOLOR_INDEX], bgColors[OUTPUT_BGCOLOR_INDEX], margins[OUTPUT_MARGINS_INDEX], strokeWidth, cornerRadius);
         applyShadow(terminalView, outlineColors[OUTPUT_BGCOLOR_INDEX], shadowXOffset, shadowYOffset, shadowRadius);
 
-        final EditText inputView = (EditText) inputOutputView.findViewById(de.reckendrees.systems.tui.expert.R.id.input_view);
-        TextView prefixView = (TextView) inputOutputView.findViewById(de.reckendrees.systems.tui.expert.R.id.prefix_view);
+        final EditText inputView = (EditText) inputOutputView.findViewById(R.id.input_view);
+        TextView prefixView = (TextView) inputOutputView.findViewById(R.id.prefix_view);
 
-        applyBgRect(inputOutputView.findViewById(de.reckendrees.systems.tui.expert.R.id.input_group), bgRectColors[INPUT_BGCOLOR_INDEX], bgColors[INPUT_BGCOLOR_INDEX], margins[INPUTAREA_MARGINS_INDEX], strokeWidth, cornerRadius);
+        applyBgRect(inputOutputView.findViewById(R.id.input_group), bgRectColors[INPUT_BGCOLOR_INDEX], bgColors[INPUT_BGCOLOR_INDEX], margins[INPUTAREA_MARGINS_INDEX], strokeWidth, cornerRadius);
         applyShadow(inputView, outlineColors[INPUT_BGCOLOR_INDEX], shadowXOffset, shadowYOffset, shadowRadius);
         applyShadow(prefixView, outlineColors[INPUT_BGCOLOR_INDEX], shadowXOffset, shadowYOffset, shadowRadius);
 
         applyMargins(inputView, margins[INPUTFIELD_MARGINS_INDEX]);
         applyMargins(prefixView, margins[INPUTFIELD_MARGINS_INDEX]);
 
-        ImageView submitView = (ImageView) inputOutputView.findViewById(de.reckendrees.systems.tui.expert.R.id.submit_tv);
+        ImageView submitView = (ImageView) inputOutputView.findViewById(R.id.submit_tv);
         boolean showSubmit = XMLPrefsManager.getBoolean(Ui.show_enter_button);
         if (!showSubmit) {
             submitView.setVisibility(View.GONE);
@@ -1385,15 +1364,15 @@ public class UIManager implements OnTouchListener {
         ImageButton pasteView = null;
 
         if(!showToolbar) {
-            inputOutputView.findViewById(de.reckendrees.systems.tui.expert.R.id.tools_view).setVisibility(View.GONE);
+            inputOutputView.findViewById(R.id.tools_view).setVisibility(View.GONE);
             toolbarView = null;
         } else {
-            backView = (ImageButton) inputOutputView.findViewById(de.reckendrees.systems.tui.expert.R.id.back_view);
-            nextView = (ImageButton) inputOutputView.findViewById(de.reckendrees.systems.tui.expert.R.id.next_view);
-            deleteView = (ImageButton) inputOutputView.findViewById(de.reckendrees.systems.tui.expert.R.id.delete_view);
-            pasteView = (ImageButton) inputOutputView.findViewById(de.reckendrees.systems.tui.expert.R.id.paste_view);
+            backView = (ImageButton) inputOutputView.findViewById(R.id.back_view);
+            nextView = (ImageButton) inputOutputView.findViewById(R.id.next_view);
+            deleteView = (ImageButton) inputOutputView.findViewById(R.id.delete_view);
+            pasteView = (ImageButton) inputOutputView.findViewById(R.id.paste_view);
 
-            toolbarView = inputOutputView.findViewById(de.reckendrees.systems.tui.expert.R.id.tools_view);
+            toolbarView = inputOutputView.findViewById(R.id.tools_view);
             hideToolbarNoInput = XMLPrefsManager.getBoolean(Toolbar.hide_toolbar_no_input);
 
             applyBgRect(toolbarView, bgRectColors[TOOLBAR_BGCOLOR_INDEX], bgColors[TOOLBAR_BGCOLOR_INDEX], margins[TOOLBAR_MARGINS_INDEX], strokeWidth, cornerRadius);
@@ -1402,7 +1381,7 @@ public class UIManager implements OnTouchListener {
         mTerminalAdapter = new TerminalManager(terminalView, inputView, prefixView, submitView, backView, nextView, deleteView, pasteView, context, mainPack, executer);
 
         if (XMLPrefsManager.getBoolean(Suggestions.show_suggestions)) {
-            HorizontalScrollView sv = (HorizontalScrollView) rootView.findViewById(de.reckendrees.systems.tui.expert.R.id.suggestions_container);
+            HorizontalScrollView sv = (HorizontalScrollView) rootView.findViewById(R.id.suggestions_container);
             sv.setFocusable(false);
             sv.setOnFocusChangeListener((v, hasFocus) -> {
                 if(hasFocus) {
@@ -1411,7 +1390,7 @@ public class UIManager implements OnTouchListener {
             });
             applyBgRect(sv, bgRectColors[SUGGESTIONS_BGCOLOR_INDEX], bgColors[SUGGESTIONS_BGCOLOR_INDEX], margins[SUGGESTIONS_MARGINS_INDEX], strokeWidth, cornerRadius);
 
-            LinearLayout suggestionsView = (LinearLayout) rootView.findViewById(de.reckendrees.systems.tui.expert.R.id.suggestions_group);
+            LinearLayout suggestionsView = (LinearLayout) rootView.findViewById(R.id.suggestions_group);
 
             suggestionsManager = new SuggestionsManager(suggestionsView, mainPack, mTerminalAdapter);
 
@@ -1422,7 +1401,7 @@ public class UIManager implements OnTouchListener {
                 else if(before == 0) toolbarView.setVisibility(View.VISIBLE);
             }));
         } else {
-            rootView.findViewById(de.reckendrees.systems.tui.expert.R.id.suggestions_group).setVisibility(View.GONE);
+            rootView.findViewById(R.id.suggestions_group).setVisibility(View.GONE);
         }
 
         int drawTimes = XMLPrefsManager.getInt(Ui.text_redraw_times);
@@ -1797,6 +1776,5 @@ public class UIManager implements OnTouchListener {
 
         updateText(Label.unlock, s);
     }
-
 }
 
