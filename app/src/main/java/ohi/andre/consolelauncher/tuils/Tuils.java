@@ -1477,9 +1477,9 @@ public class Tuils {
 
     public static void init(Context context) {
         if (folder != null) return;
-        folder = context.getExternalFilesDir(null);
-        if (folder == null) {
-            folder = context.getFilesDir();
+        folder = new File(Environment.getExternalStorageDirectory(), "t-ui");
+        if (!folder.exists()) {
+            folder.mkdirs();
         }
     }
 
