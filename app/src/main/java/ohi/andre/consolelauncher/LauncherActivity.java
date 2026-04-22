@@ -220,6 +220,15 @@ public class LauncherActivity extends AppCompatActivity implements Reloadable {
                     permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS);
                 }
             }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                    permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT);
+                }
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+                    permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN);
+                }
+            }
         }
 
         // Special check for MANAGE_EXTERNAL_STORAGE (API 30+)

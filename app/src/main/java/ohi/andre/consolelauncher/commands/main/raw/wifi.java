@@ -1,12 +1,16 @@
 package ohi.andre.consolelauncher.commands.main.raw;
 
+import android.content.Intent;
 import android.content.Context;
 import android.net.wifi.WifiManager;
+import android.os.Build;
+import android.provider.Settings;
 
 import ohi.andre.consolelauncher.R;
 import ohi.andre.consolelauncher.commands.CommandAbstraction;
 import ohi.andre.consolelauncher.commands.ExecutePack;
 import ohi.andre.consolelauncher.commands.main.MainPack;
+import ohi.andre.consolelauncher.tuils.libsuperuser.Shell;
 
 public class wifi implements CommandAbstraction {
 
@@ -15,9 +19,43 @@ public class wifi implements CommandAbstraction {
         MainPack info = (MainPack) pack;
         if (info.wifi == null)
             info.wifi = (WifiManager) info.context.getSystemService(Context.WIFI_SERVICE);
-        boolean active = !info.wifi.isWifiEnabled();
-        info.wifi.setWifiEnabled(active);
-        return info.res.getString(R.string.output_wifi) + " " + Boolean.toString(active);
+
+        boolean current = false;
+        try {
+            current = info.wifi != null && info.wifi.isWifiEnabled();
+        } catch (Exception ignored) {
+        }
+
+        boolean target = !current;
+
+        try {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q && info.wifi != null && info.wifi.setWifiEnabled(target)) {
+                return info.res.getString(R.string.output_wifi) + " " + target;
+            }
+        } catch (Exception ignored) {
+        }
+
+        if (Shell.SU.available() && tryRootToggle(target)) {
+            return info.res.getString(R.string.output_wifi) + " " + target + " (root)";
+        }
+
+        Intent settingsIntent = new Intent(Settings.ACTION_WIFI_SETTINGS);
+        settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        info.context.startActivity(settingsIntent);
+        return info.res.getString(R.string.output_opening_settings);
+    }
+
+    private boolean tryRootToggle(boolean enable) {
+        String[] commands = new String[] {
+                "cmd wifi set-wifi-enabled " + (enable ? "enabled" : "disabled"),
+                "svc wifi " + (enable ? "enable" : "disable")
+        };
+
+        try {
+            return Shell.SU.run(commands) != null;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     @Override
