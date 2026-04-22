@@ -1,11 +1,12 @@
-<h1 align="center">x.tui launcher</h1>
+<h1 align="center"><code>x</code>.<code>tui</code> launcher</h1>
 
 <div align="center">
 <p align="center"><img src="./xtui.svg" width="80" alt="x.tui launcher icon" /></p>
 
 <p>A terminal-based Android launcher that replaces your home screen with a fully functional command-line interface. Type commands, launch apps, manage files, and control your device -- all from a console prompt.</p>
 
-<p><code>x.tui.launcher</code> | Android 5.0+ | Java 17 | MIT License</p>
+
+<p> <img src="https://xscriptor.github.io/badges/os/android.svg"> <img src="https://xscriptor.github.io/badges/languages/java.svg"> <img src="https://xscriptor.github.io/badges/licenses/mit.svg"> </p>
 </div>
 
 <!--Menu-->
