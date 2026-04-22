@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <rect x="10" y="10" width="180" height="180" rx="10" ry="10" fill="#222" stroke="#555" stroke-width="3" />
+  <rect x="10" y="10" width="180" height="25" rx="10" ry="10" fill="#333" stroke="#555" stroke-width="3" />
+  <circle cx="30" cy="22.5" r="5" fill="#ff5f56" />
+  <circle cx="50" cy="22.5" r="5" fill="#ffbd2e" />
+  <circle cx="70" cy="22.5" r="5" fill="#27c93f" />
+
+  <path d="M 40 70 L 60 90 L 40 110" stroke="#fff" stroke-width="6" fill="none" />
+
+  <text x="75" y="105" font-family="monospace" font-size="32" fill="#fff" text-anchor="start">
+    x.tui
+  </text>
+
+  <line x1="10" y1="35" x2="190" y2="35" stroke="#555" stroke-width="3" />
+</svg>
